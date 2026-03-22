@@ -11,7 +11,7 @@ jobs:
           $encodedNotice = "PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IENvcHlyaWdodCDCqSAyMDI1IGZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggfCBodHRwczovL3d3dy5mYWNlYm9vay5jb20vRHIuSHVzc2Vpbi5BaG1lZC5ILyBBbGwgcmlnaHRzIHJlc2VydmVkLiBEbyBub3QgcmVtb3ZlIG9yIG1vZGlmeSBjb3B5cmlnaHQgdGV4dC4gRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggQW55IGNoYW5nZXMgd2lsbCBhdXRvbWF0aWNhbGx5IGRpc2FibGUgdGhpcyBzY3JpcHQhID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ=="
           $decodedNotice = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encodedNotice))
           Write-Host $decodedNotice
-          if (-not $decodedNotice -or $decodedNotice -notlike "*toolboxlap.xyz*") {
+          if (-not $decodedNotice -or $decodedNotice -notlike "*facebook.com/Dr.Hussein.Ahmed.H*") {
               Write-Error "Copyright was tampered with or removed – script will not work!"
               exit 1
           }
@@ -37,16 +37,16 @@ jobs:
 
       - name: Create RDP User with Static Password
         run: |
-          $password = "admin@123"
+          $password = "hussein@123"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
-          if (-not (Get-LocalUser -Name "TOOLBOXLAP" -ErrorAction SilentlyContinue)) {
-              New-LocalUser -Name "TOOLBOXLAP" -Password $securePass -AccountNeverExpires
+          if (-not (Get-LocalUser -Name "HUSSEIN" -ErrorAction SilentlyContinue)) {
+              New-LocalUser -Name "HUSSEIN" -Password $securePass -AccountNeverExpires
           }
-          Add-LocalGroupMember -Group "Administrators" -Member "TOOLBOXLAP"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "TOOLBOXLAP"
-          echo "RDP_CREDS=User: TOOLBOXLAP | Password: $password" >> $env:GITHUB_ENV
-          if (-not (Get-LocalUser -Name "TOOLBOXLAP")) {
+          Add-LocalGroupMember -Group "Administrators" -Member "HUSSEIN"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "HUSSEIN"
+          echo "RDP_CREDS=User: HUSSEIN | Password: $password" >> $env:GITHUB_ENV
+          if (-not (Get-LocalUser -Name "HUSSEIN")) {
               Write-Error "User creation failed"
               exit 1
           }
@@ -93,7 +93,7 @@ jobs:
           Write-Host "Address: $env:TAILSCALE_IP"
           Write-Host "Username: HUSSEIN"
           Write-Host "Password: admin@123"
-          Write-Host "Powered by https://www.toolboxlap.xyz/"
+          Write-Host "Powered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
           Write-Host "========= All rights reserved =========`n"
           while ($true) {
               Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
