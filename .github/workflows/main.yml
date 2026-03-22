@@ -37,7 +37,7 @@ jobs:
 
       - name: Create RDP User with Static Password
         run: |
-          $password = "hussein@2022"
+          $password = "HuSsEin@2002!"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
           if (-not (Get-LocalUser -Name "HUSSEIN" -ErrorAction SilentlyContinue)) {
@@ -92,7 +92,7 @@ jobs:
           Write-Host "`n=== RDP ACCESS ==="
           Write-Host "Address: $env:TAILSCALE_IP"
           Write-Host "Username: HUSSEIN"
-          Write-Host "Password: hussein@2022"
+          Write-Host "Password: HuSsEin@2002!"
           Write-Host "Powered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
           Write-Host "========= All rights reserved =========`n"
           while ($true) {
