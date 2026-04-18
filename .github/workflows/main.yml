@@ -70,6 +70,12 @@ jobs:
             Write-Host "User already in Remote Desktop Users or could not be added again."
           }
 
+          try {
+            Add-LocalGroupMember -Group "Administrators" -Member $username -ErrorAction Stop
+          } catch {
+            Write-Host "User already in Administrators or could not be added again."
+          }
+
       - name: Install Tailscale
         shell: powershell
         run: |
@@ -123,7 +129,7 @@ jobs:
           ## RDP Ready
           - Address: $env:TAILSCALE_IP
           - Username: $env:RDP_USERNAME
-          - Password: use the GitHub secret `RDP_PASSWORD`
+          - Password: use the GitHub secret RDP_PASSWORD
           "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - name: Keep session alive
