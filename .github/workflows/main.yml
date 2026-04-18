@@ -1,8 +1,6 @@
-name: RDP - Parsec + Tailscale (VDD Fixed)
-
+name: RDP
 on:
   workflow_dispatch:
-
 jobs:
   secure-rdp:
     runs-on: windows-2025
@@ -18,24 +16,40 @@ jobs:
               exit 1
           }
 
-      - name: Core RDP Settings + Firewall
+      - name: Core RDP Settings
+        run: |
+          $folderPath = "D:\link follow facebook channel"
+          if (-Not (Test-Path -Path $folderPath)) {
+              New-Item -Path $folderPath -ItemType Directory
+              Write-Host "Folder 'link follow facebook channel' has been created in D drive."
+          } else {
+              Write-Host "Folder 'link follow facebook channel' already exists in D drive."
+          }
+
+      - name: Configure Core RDP Settings
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+          netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Create RDP User
+      - name: Create RDP User with Static Password
         run: |
           $password = "admin@123"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+
           if (-not (Get-LocalUser -Name "HUSSEIN" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "HUSSEIN" -Password $securePass -AccountNeverExpires
           }
           Add-LocalGroupMember -Group "Administrators" -Member "HUSSEIN"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "HUSSEIN"
           echo "RDP_CREDS=User: HUSSEIN | Password: $password" >> $env:GITHUB_ENV
+          if (-not (Get-LocalUser -Name "HUSSEIN")) {
+              Write-Error "User creation failed"
+              exit 1
+          }
 
       - name: Install Tailscale
         run: |
@@ -50,47 +64,38 @@ jobs:
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
           $tsIP = $null
           $retries = 0
-          while (-not $tsIP -and $retries -lt 15) {
+          while (-not $tsIP -and $retries -lt 10) {
               $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
               Start-Sleep -Seconds 5
               $retries++
           }
-          if (-not $tsIP) { Write-Error "Tailscale IP not assigned"; exit 1 }
+          if (-not $tsIP) {
+              Write-Error "Tailscale IP not assigned. Exiting."
+              exit 1
+          }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
-      # ====================== Parsec + VDD (الجزء المعدل والمثبت) ======================
-      - name: Install Parsec Virtual Display Driver (VDD) - Fixed
+      - name: Verify RDP Accessibility
         run: |
-          $vddUrl = "https://github.com/nomi-san/parsec-vdd/releases/download/v0.45.1/parsec-vdd-setup.exe"
-          $vddPath = "$env:TEMP\parsec-vdd-setup.exe"
-          Invoke-WebRequest -Uri $vddUrl -OutFile $vddPath -UserAgent "Mozilla/5.0" -MaximumRedirection 10
-          Start-Process -FilePath $vddPath -ArgumentList "/S", "/verysilent", "/norestart" -Wait -NoNewWindow
-          Remove-Item $vddPath -Force
-          Write-Host "✅ Parsec VDD installed successfully (v0.45.1)"
+          Write-Host "Tailscale IP: $env:TAILSCALE_IP"
+          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
+          if (-not $testResult.TcpTestSucceeded) {
+              Write-Error "TCP connection to RDP port 3389 failed"
+              exit 1
+          }
+          Write-Host "TCP connectivity successful!"
 
-      - name: Install Parsec (Fixed)
+      - name: Maintain Connection
         run: |
-          $parsecUrl = "https://parsec.app/downloads/parsec-windows.exe"
-          $parsecPath = "$env:TEMP\parsec.exe"
-          Invoke-WebRequest -Uri $parsecUrl -OutFile $parsecPath -UserAgent "Mozilla/5.0" -MaximumRedirection 10
-          Start-Process -FilePath $parsecPath -ArgumentList "/verysilent", "/norestart", "/sp-", "/suppressmsgboxes" -Wait -NoNewWindow
-          Remove-Item $parsecPath -Force
-          Write-Host "✅ Parsec installed successfully"
-
-      - name: Maintain Connection + Parsec Info
-        run: |
-          Write-Host "`n=== RDP + PARSEC READY ==="
-          Write-Host "Tailscale IP : $env:TAILSCALE_IP"
-          Write-Host "Username     : HUSSEIN"
-          Write-Host "Password     : admin@123"
-          Write-Host "`n=== Parsec Instructions (مهم) ==="
-          Write-Host "1. افتح RDP على $env:TAILSCALE_IP"
-          Write-Host "2. سجل دخول في Parsec (Hussein1h#19315983)"
-          Write-Host "3. افتح ParsecVDisplay (من Start) → Add Virtual Display"
-          Write-Host "4. Parsec Settings → Host → Hosting Enabled = ON"
-          Write-Host "5. ارجع لجهازك الأصلي → Reload → Connect"
-          Write-Host "`nPowered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
+          $ownershipNotice = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IENvcHlyaWdodCDCqSAyMDI1IGZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggfCBodHRwczovL3d3dy5mYWNlYm9vay5jb20vRHIuSHVzc2Vpbi5BaG1lZC5ILyBBbGwgcmlnaHRzIHJlc2VydmVkLiBEbyBub3QgcmVtb3ZlIG9yIG1vZGlmeSBjb3B5cmlnaHQgdGV4dC4gRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggQW55IGNoYW5nZXMgd2lsbCBhdXRvbWF0aWNhbGx5IGRpc2FibGUgdGhpcyBzY3JpcHQhID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ=="))
+          Write-Host $ownershipNotice
+          Write-Host "`n=== RDP ACCESS ==="
+          Write-Host "Address: $env:TAILSCALE_IP"
+          Write-Host "Username: HUSSEIN"
+          Write-Host "Password: admin@123"
+          Write-Host "Powered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
+          Write-Host "========= All rights reserved =========`n"
           while ($true) {
-              Write-Host "[$(Get-Date)] Parsec + Tailscale Active - Ctrl+C to stop"
+              Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
               Start-Sleep -Seconds 300
           }
