@@ -1,141 +1,101 @@
-name: Secure RDP
-
+name: RDP
 on:
   workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: secure-rdp
-  cancel-in-progress: true
-
 jobs:
   secure-rdp:
     runs-on: windows-2025
-    timeout-minutes: 360
-
-    env:
-      RDP_USERNAME: HUSSEIN
-
+    timeout-minutes: 3600
     steps:
-      - name: Validate required secrets
-        shell: powershell
+      - name: Ownership Verification (Encoded)
         run: |
-          if ([string]::IsNullOrWhiteSpace("${{ secrets.TAILSCALE_AUTH_KEY }}")) {
-            throw "Missing GitHub secret: TAILSCALE_AUTH_KEY"
+          $encodedNotice = "PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IENvcHlyaWdodCDCqSAyMDI1IGZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggfCBodHRwczovL3d3dy5mYWNlYm9vay5jb20vRHIuSHVzc2Vpbi5BaG1lZC5ILyBBbGwgcmlnaHRzIHJlc2VydmVkLiBEbyBub3QgcmVtb3ZlIG9yIG1vZGlmeSBjb3B5cmlnaHQgdGV4dC4gRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggQW55IGNoYW5nZXMgd2lsbCBhdXRvbWF0aWNhbGx5IGRpc2FibGUgdGhpcyBzY3JpcHQhID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ=="
+          $decodedNotice = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encodedNotice))
+          Write-Host $decodedNotice
+          if (-not $decodedNotice -or $decodedNotice -notlike "*facebook.com/Dr.Hussein.Ahmed.H*") {
+              Write-Error "Copyright was tampered with or removed – script will not work!"
+              exit 1
           }
 
-          if ([string]::IsNullOrWhiteSpace("${{ secrets.RDP_PASSWORD }}")) {
-            throw "Missing GitHub secret: RDP_PASSWORD"
+      - name: Core RDP Settings
+        run: |
+          $folderPath = "D:\link follow facebook channel"
+          if (-Not (Test-Path -Path $folderPath)) {
+              New-Item -Path $folderPath -ItemType Directory
+              Write-Host "Folder 'link follow facebook channel' has been created in D drive."
+          } else {
+              Write-Host "Folder 'link follow facebook channel' already exists in D drive."
           }
 
-      - name: Prepare workspace
-        shell: powershell
+      - name: Configure Core RDP Settings
         run: |
-          $folderPath = "D:\RDP"
-          New-Item -Path $folderPath -ItemType Directory -Force | Out-Null
-
-      - name: Configure secure RDP
-        shell: powershell
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'UserAuthentication' -Value 1 -Force
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'SecurityLayer' -Value 1 -Force
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name 'fPromptForPassword' -Value 1 -Force
-
-          netsh advfirewall firewall delete rule name="RDP-Tailscale" | Out-Null
-          netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389 remoteip=100.64.0.0/10,fd7a:115c:a1e0::/48
-
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+          netsh advfirewall firewall delete rule name="RDP-Tailscale"
+          netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Create RDP user
-        shell: powershell
+      - name: Create RDP User with Static Password
         run: |
-          $username = $env:RDP_USERNAME
-          $password = "${{ secrets.RDP_PASSWORD }}"
+          $password = "admin@123"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
-          $existingUser = Get-LocalUser -Name $username -ErrorAction SilentlyContinue
-
-          if ($null -eq $existingUser) {
-            New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -PasswordNeverExpires
-          } else {
-            Set-LocalUser -Name $username -Password $securePass
+          if (-not (Get-LocalUser -Name "HUSSEIN" -ErrorAction SilentlyContinue)) {
+              New-LocalUser -Name "HUSSEIN" -Password $securePass -AccountNeverExpires
           }
-
-          try {
-            Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username -ErrorAction Stop
-          } catch {
-            Write-Host "User already in Remote Desktop Users or could not be added again."
-          }
-
-          try {
-            Add-LocalGroupMember -Group "Administrators" -Member $username -ErrorAction Stop
-          } catch {
-            Write-Host "User already in Administrators or could not be added again."
+          Add-LocalGroupMember -Group "Administrators" -Member "HUSSEIN"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "HUSSEIN"
+          echo "RDP_CREDS=User: HUSSEIN | Password: $password" >> $env:GITHUB_ENV
+          if (-not (Get-LocalUser -Name "HUSSEIN")) {
+              Write-Error "User creation failed"
+              exit 1
           }
 
       - name: Install Tailscale
-        shell: powershell
         run: |
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
-
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
 
-      - name: Connect Tailscale
-        shell: powershell
+      - name: Establish Tailscale Connection
         run: |
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTH_KEY }}" --hostname="gh-runner-$env:GITHUB_RUN_ID" --accept-dns=false --reset
-
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
           $tsIP = $null
-          for ($i = 0; $i -lt 12; $i++) {
-            $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
-            if ($tsIP) { break }
-            Start-Sleep -Seconds 5
+          $retries = 0
+          while (-not $tsIP -and $retries -lt 10) {
+              $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+              Start-Sleep -Seconds 5
+              $retries++
           }
-
           if (-not $tsIP) {
-            throw "Tailscale IP was not assigned."
+              Write-Error "Tailscale IP not assigned. Exiting."
+              exit 1
           }
+          echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
-          "TAILSCALE_IP=$tsIP" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Verify RDP service
-        shell: powershell
+      - name: Verify RDP Accessibility
         run: |
-          Start-Sleep -Seconds 5
-          $rdpTest = Test-NetConnection -ComputerName 127.0.0.1 -Port 3389
-
-          if (-not $rdpTest.TcpTestSucceeded) {
-            throw "RDP port 3389 is not listening."
+          Write-Host "Tailscale IP: $env:TAILSCALE_IP"
+          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
+          if (-not $testResult.TcpTestSucceeded) {
+              Write-Error "TCP connection to RDP port 3389 failed"
+              exit 1
           }
+          Write-Host "TCP connectivity successful!"
 
-      - name: Print connection info
-        shell: powershell
+      - name: Maintain Connection
         run: |
-          Write-Host ""
-          Write-Host "=== RDP READY ==="
-          Write-Host "Address  : $env:TAILSCALE_IP"
-          Write-Host "Username : $env:RDP_USERNAME"
-          Write-Host "Password : stored in GitHub secret RDP_PASSWORD"
-          Write-Host "================="
-          Write-Host ""
-
-          @"
-          ## RDP Ready
-          - Address: $env:TAILSCALE_IP
-          - Username: $env:RDP_USERNAME
-          - Password: use the GitHub secret RDP_PASSWORD
-          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-
-      - name: Keep session alive
-        shell: powershell
-        run: |
+          $ownershipNotice = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IENvcHlyaWdodCDCqSAyMDI1IGZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggfCBodHRwczovL3d3dy5mYWNlYm9vay5jb20vRHIuSHVzc2Vpbi5BaG1lZC5ILyBBbGwgcmlnaHRzIHJlc2VydmVkLiBEbyBub3QgcmVtb3ZlIG9yIG1vZGlmeSBjb3B5cmlnaHQgdGV4dC4gRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggQW55IGNoYW5nZXMgd2lsbCBhdXRvbWF0aWNhbGx5IGRpc2FibGUgdGhpcyBzY3JpcHQhID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ=="))
+          Write-Host $ownershipNotice
+          Write-Host "`n=== RDP ACCESS ==="
+          Write-Host "Address: $env:TAILSCALE_IP"
+          Write-Host "Username: HUSSEIN"
+          Write-Host "Password: admin@123"
+          Write-Host "Powered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
+          Write-Host "========= All rights reserved =========`n"
           while ($true) {
-            Write-Host "[$(Get-Date -Format s)] RDP session alive"
-            Start-Sleep -Seconds 300
+              Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
+              Start-Sleep -Seconds 300
           }
