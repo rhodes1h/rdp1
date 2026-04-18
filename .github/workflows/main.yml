@@ -1,4 +1,5 @@
-name: RDP
+name: RDP - Parsec + Tailscale (Fixed)
+
 on:
   workflow_dispatch:
 
@@ -17,26 +18,15 @@ jobs:
               exit 1
           }
 
-      - name: Core RDP Settings
-        run: |
-          $folderPath = "D:\link follow facebook channel"
-          if (-Not (Test-Path -Path $folderPath)) {
-              New-Item -Path $folderPath -ItemType Directory
-              Write-Host "Folder 'link follow facebook channel' has been created in D drive."
-          } else {
-              Write-Host "Folder 'link follow facebook channel' already exists in D drive."
-          }
-
-      - name: Configure Core RDP Settings
+      - name: Core RDP Settings + Firewall
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
-          netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Create RDP User with Static Password
+      - name: Create RDP User
         run: |
           $password = "admin@123"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
@@ -60,63 +50,47 @@ jobs:
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
           $tsIP = $null
           $retries = 0
-          while (-not $tsIP -and $retries -lt 10) {
+          while (-not $tsIP -and $retries -lt 15) {
               $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
               Start-Sleep -Seconds 5
               $retries++
           }
-          if (-not $tsIP) {
-              Write-Error "Tailscale IP not assigned. Exiting."
-              exit 1
-          }
+          if (-not $tsIP) { Write-Error "Tailscale IP not assigned"; exit 1 }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
-      - name: Verify RDP Accessibility
-        run: |
-          Write-Host "Tailscale IP: $env:TAILSCALE_IP"
-          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
-          if (-not $testResult.TcpTestSucceeded) {
-              Write-Error "TCP connection to RDP port 3389 failed"
-              exit 1
-          }
-          Write-Host "TCP connectivity successful!"
-
-      # ====================== الجزء الجديد: Parsec + VDD ======================
-      - name: Install Parsec (Silent)
-        run: |
-          $parsecUrl = "https://parsec.app/downloads/parsec-windows.exe"
-          $installerPath = "$env:TEMP\parsec.exe"
-          Invoke-WebRequest -Uri $parsecUrl -OutFile $installerPath -UseBasicParsing
-          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait -NoNewWindow
-          Remove-Item $installerPath -Force
-          Write-Host "✅ Parsec installed successfully"
-
-      - name: Install Parsec Virtual Display Driver (VDD) - يحل مشكلة -14003
+      # ====================== Parsec + VDD (الجزء المعدل) ======================
+      - name: Install Parsec Virtual Display Driver (VDD) - يحل -14003
         run: |
           $vddUrl = "https://github.com/nomi-san/parsec-vdd/releases/latest/download/parsec-vdd-setup.exe"
           $vddPath = "$env:TEMP\parsec-vdd-setup.exe"
-          Invoke-WebRequest -Uri $vddUrl -OutFile $vddPath -UseBasicParsing
-          Start-Process -FilePath $vddPath -ArgumentList "/S" -Wait -NoNewWindow
+          Invoke-WebRequest -Uri $vddUrl -OutFile $vddPath
+          Start-Process -FilePath $vddPath -ArgumentList "/S", "/verysilent", "/norestart" -Wait -NoNewWindow
           Remove-Item $vddPath -Force
-          Write-Host "✅ Parsec VDD installed successfully (Virtual Display ready)"
+          Write-Host "✅ Parsec VDD installed successfully"
+
+      - name: Install Parsec (Fixed Silent)
+        run: |
+          $parsecUrl = "https://parsec.app/downloads/parsec-windows.exe"
+          $installerPath = "$env:TEMP\parsec.exe"
+          Invoke-WebRequest -Uri $parsecUrl -OutFile $installerPath
+          Start-Process -FilePath $installerPath -ArgumentList "/verysilent", "/norestart", "/sp-", "/suppressmsgboxes" -Wait -NoNewWindow
+          Remove-Item $installerPath -Force
+          Write-Host "✅ Parsec installed successfully (verysilent mode)"
 
       - name: Maintain Connection + Parsec Info
         run: |
-          $ownershipNotice = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IENvcHlyaWdodCDCqSAyMDI1IGZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggfCBodHRwczovL3d3dy5mYWNlYm9vay5jb20vRHIuSHVzc2Vpbi5BaG1lZC5ILyBBbGwgcmlnaHRzIHJlc2VydmVkLiBEbyBub3QgcmVtb3ZlIG9yIG1vZGlmeSBjb3B5cmlnaHQgdGV4dC4gRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggQW55IGNoYW5nZXMgd2lsbCBhdXRvbWF0aWNhbGx5IGRpc2FibGUgdGhpcyBzY3JpcHQhID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ=="))
-          Write-Host $ownershipNotice
-          Write-Host "`n=== RDP + PARSEC ACCESS ==="
+          Write-Host "`n=== RDP + PARSEC READY ==="
           Write-Host "Tailscale IP : $env:TAILSCALE_IP"
           Write-Host "Username     : HUSSEIN"
           Write-Host "Password     : admin@123"
-          Write-Host "`n=== PARSEC INFO ==="
+          Write-Host "`n=== Parsec Instructions ==="
           Write-Host "1. افتح RDP على $env:TAILSCALE_IP"
-          Write-Host "2. سجل دخول في Parsec بحسابك (Hussein1h#19315983)"
-          Write-Host "3. افتح ParsecVDisplay (من Start Menu) → Add Virtual Display"
-          Write-Host "4. في Parsec → Settings → Host → Hosting Enabled"
-          Write-Host "5. ارجع لجهازك الأصلي → Parsec → Reload → Connect على runnervmxu3fp"
+          Write-Host "2. سجل دخول في Parsec (Hussein1h#19315983)"
+          Write-Host "3. افتح ParsecVDisplay → Add Virtual Display (1920x1080)"
+          Write-Host "4. Parsec Settings → Host → Hosting Enabled"
+          Write-Host "5. ارجع لجهازك → Reload → Connect على runnervmxu3fp"
           Write-Host "`nPowered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
-          Write-Host "========= All rights reserved =========`n"
           while ($true) {
-              Write-Host "[$(Get-Date)] RDP + Parsec Active - Use Ctrl+C to terminate"
+              Write-Host "[$(Get-Date)] Parsec + Tailscale Active"
               Start-Sleep -Seconds 300
           }
