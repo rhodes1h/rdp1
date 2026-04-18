@@ -1,4 +1,4 @@
-name: RDP - Parsec + Tailscale (Fixed)
+name: RDP - Parsec + Tailscale (VDD Fixed)
 
 on:
   workflow_dispatch:
@@ -58,24 +58,24 @@ jobs:
           if (-not $tsIP) { Write-Error "Tailscale IP not assigned"; exit 1 }
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
-      # ====================== Parsec + VDD (الجزء المعدل) ======================
-      - name: Install Parsec Virtual Display Driver (VDD) - يحل -14003
+      # ====================== Parsec + VDD (الجزء المعدل والمثبت) ======================
+      - name: Install Parsec Virtual Display Driver (VDD) - Fixed
         run: |
-          $vddUrl = "https://github.com/nomi-san/parsec-vdd/releases/latest/download/parsec-vdd-setup.exe"
+          $vddUrl = "https://github.com/nomi-san/parsec-vdd/releases/download/v0.45.1/parsec-vdd-setup.exe"
           $vddPath = "$env:TEMP\parsec-vdd-setup.exe"
-          Invoke-WebRequest -Uri $vddUrl -OutFile $vddPath
+          Invoke-WebRequest -Uri $vddUrl -OutFile $vddPath -UserAgent "Mozilla/5.0" -MaximumRedirection 10
           Start-Process -FilePath $vddPath -ArgumentList "/S", "/verysilent", "/norestart" -Wait -NoNewWindow
           Remove-Item $vddPath -Force
-          Write-Host "✅ Parsec VDD installed successfully"
+          Write-Host "✅ Parsec VDD installed successfully (v0.45.1)"
 
-      - name: Install Parsec (Fixed Silent)
+      - name: Install Parsec (Fixed)
         run: |
           $parsecUrl = "https://parsec.app/downloads/parsec-windows.exe"
-          $installerPath = "$env:TEMP\parsec.exe"
-          Invoke-WebRequest -Uri $parsecUrl -OutFile $installerPath
-          Start-Process -FilePath $installerPath -ArgumentList "/verysilent", "/norestart", "/sp-", "/suppressmsgboxes" -Wait -NoNewWindow
-          Remove-Item $installerPath -Force
-          Write-Host "✅ Parsec installed successfully (verysilent mode)"
+          $parsecPath = "$env:TEMP\parsec.exe"
+          Invoke-WebRequest -Uri $parsecUrl -OutFile $parsecPath -UserAgent "Mozilla/5.0" -MaximumRedirection 10
+          Start-Process -FilePath $parsecPath -ArgumentList "/verysilent", "/norestart", "/sp-", "/suppressmsgboxes" -Wait -NoNewWindow
+          Remove-Item $parsecPath -Force
+          Write-Host "✅ Parsec installed successfully"
 
       - name: Maintain Connection + Parsec Info
         run: |
@@ -83,14 +83,14 @@ jobs:
           Write-Host "Tailscale IP : $env:TAILSCALE_IP"
           Write-Host "Username     : HUSSEIN"
           Write-Host "Password     : admin@123"
-          Write-Host "`n=== Parsec Instructions ==="
+          Write-Host "`n=== Parsec Instructions (مهم) ==="
           Write-Host "1. افتح RDP على $env:TAILSCALE_IP"
           Write-Host "2. سجل دخول في Parsec (Hussein1h#19315983)"
-          Write-Host "3. افتح ParsecVDisplay → Add Virtual Display (1920x1080)"
-          Write-Host "4. Parsec Settings → Host → Hosting Enabled"
-          Write-Host "5. ارجع لجهازك → Reload → Connect على runnervmxu3fp"
+          Write-Host "3. افتح ParsecVDisplay (من Start) → Add Virtual Display"
+          Write-Host "4. Parsec Settings → Host → Hosting Enabled = ON"
+          Write-Host "5. ارجع لجهازك الأصلي → Reload → Connect"
           Write-Host "`nPowered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
           while ($true) {
-              Write-Host "[$(Get-Date)] Parsec + Tailscale Active"
+              Write-Host "[$(Get-Date)] Parsec + Tailscale Active - Ctrl+C to stop"
               Start-Sleep -Seconds 300
           }
