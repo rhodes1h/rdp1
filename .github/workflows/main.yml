@@ -1,6 +1,7 @@
 name: RDP
 on:
   workflow_dispatch:
+
 jobs:
   secure-rdp:
     runs-on: windows-2025
@@ -39,17 +40,12 @@ jobs:
         run: |
           $password = "admin@123"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-
           if (-not (Get-LocalUser -Name "HUSSEIN" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "HUSSEIN" -Password $securePass -AccountNeverExpires
           }
           Add-LocalGroupMember -Group "Administrators" -Member "HUSSEIN"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "HUSSEIN"
           echo "RDP_CREDS=User: HUSSEIN | Password: $password" >> $env:GITHUB_ENV
-          if (-not (Get-LocalUser -Name "HUSSEIN")) {
-              Write-Error "User creation failed"
-              exit 1
-          }
 
       - name: Install Tailscale
         run: |
@@ -85,17 +81,42 @@ jobs:
           }
           Write-Host "TCP connectivity successful!"
 
-      - name: Maintain Connection
+      # ====================== الجزء الجديد: Parsec + VDD ======================
+      - name: Install Parsec (Silent)
+        run: |
+          $parsecUrl = "https://parsec.app/downloads/parsec-windows.exe"
+          $installerPath = "$env:TEMP\parsec.exe"
+          Invoke-WebRequest -Uri $parsecUrl -OutFile $installerPath -UseBasicParsing
+          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait -NoNewWindow
+          Remove-Item $installerPath -Force
+          Write-Host "✅ Parsec installed successfully"
+
+      - name: Install Parsec Virtual Display Driver (VDD) - يحل مشكلة -14003
+        run: |
+          $vddUrl = "https://github.com/nomi-san/parsec-vdd/releases/latest/download/parsec-vdd-setup.exe"
+          $vddPath = "$env:TEMP\parsec-vdd-setup.exe"
+          Invoke-WebRequest -Uri $vddUrl -OutFile $vddPath -UseBasicParsing
+          Start-Process -FilePath $vddPath -ArgumentList "/S" -Wait -NoNewWindow
+          Remove-Item $vddPath -Force
+          Write-Host "✅ Parsec VDD installed successfully (Virtual Display ready)"
+
+      - name: Maintain Connection + Parsec Info
         run: |
           $ownershipNotice = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IENvcHlyaWdodCDCqSAyMDI1IGZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggfCBodHRwczovL3d3dy5mYWNlYm9vay5jb20vRHIuSHVzc2Vpbi5BaG1lZC5ILyBBbGwgcmlnaHRzIHJlc2VydmVkLiBEbyBub3QgcmVtb3ZlIG9yIG1vZGlmeSBjb3B5cmlnaHQgdGV4dC4gRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggRmFjZWJvb2s6IGh0dHBzOi8vd3d3LmZhY2Vib29rLmNvbS9Eci5IdXNzZWluLkFobWVkLkggQW55IGNoYW5nZXMgd2lsbCBhdXRvbWF0aWNhbGx5IGRpc2FibGUgdGhpcyBzY3JpcHQhID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ=="))
           Write-Host $ownershipNotice
-          Write-Host "`n=== RDP ACCESS ==="
-          Write-Host "Address: $env:TAILSCALE_IP"
-          Write-Host "Username: HUSSEIN"
-          Write-Host "Password: admin@123"
-          Write-Host "Powered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
+          Write-Host "`n=== RDP + PARSEC ACCESS ==="
+          Write-Host "Tailscale IP : $env:TAILSCALE_IP"
+          Write-Host "Username     : HUSSEIN"
+          Write-Host "Password     : admin@123"
+          Write-Host "`n=== PARSEC INFO ==="
+          Write-Host "1. افتح RDP على $env:TAILSCALE_IP"
+          Write-Host "2. سجل دخول في Parsec بحسابك (Hussein1h#19315983)"
+          Write-Host "3. افتح ParsecVDisplay (من Start Menu) → Add Virtual Display"
+          Write-Host "4. في Parsec → Settings → Host → Hosting Enabled"
+          Write-Host "5. ارجع لجهازك الأصلي → Parsec → Reload → Connect على runnervmxu3fp"
+          Write-Host "`nPowered by https://www.facebook.com/Dr.Hussein.Ahmed.H/"
           Write-Host "========= All rights reserved =========`n"
           while ($true) {
-              Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
+              Write-Host "[$(Get-Date)] RDP + Parsec Active - Use Ctrl+C to terminate"
               Start-Sleep -Seconds 300
           }
